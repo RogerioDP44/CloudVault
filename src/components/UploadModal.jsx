@@ -61,6 +61,7 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
       const safety = validateFileSafety(file);
       const category = classifyFile(file);
       const willCompress = needsCompression(file);
+      const isPhotoOptimizable = category === 'photos' && file.size > 2 * 1024 * 1024;
 
       return {
         id: `queue_${Date.now()}_${idx}`,
@@ -76,7 +77,9 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
           ? safety.reason 
           : willCompress 
             ? 'Será comprimido (>50MB)' 
-            : 'Pronto para envio'
+            : isPhotoOptimizable
+              ? 'Será otimizada (>2MB)'
+              : 'Pronto para envio'
       };
     });
 
