@@ -19,7 +19,8 @@ import {
   getCurrentUser,
   signOutUser,
   onAuthStateChange,
-  fetchAllUsers
+  fetchAllUsers,
+  updateFileFolder
 } from './services/supabase';
 import { shareFile, downloadFile } from './utils/share';
 import { 
@@ -73,6 +74,31 @@ export default function App() {
 
   // Config do Supabase
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(true);
+
+  // Pastas criadas pelo usuário (persiste no localStorage)
+  const [extraFolders, setExtraFolders] = useState([]);
+
+  // Carrega pastas salvas quando o usuário muda
+  useEffect(() => {
+    if (currentUser) {
+      try {
+        const key = `cloudvault_folders_${currentUser.id}`;
+        const saved = localStorage.getItem(key);
+        setExtraFolders(saved ? JSON.parse(saved) : []);
+      } catch { setExtraFolders([]); }
+    } else {
+      setExtraFolders([]);
+    }
+  }, [currentUser?.id]);
+
+  const addExtraFolder = (name) => {
+    if (!name || !currentUser) return;
+    setExtraFolders(prev => {
+      const next = [...new Set([...prev, name])];
+      localStorage.setItem(`cloudvault_folders_${currentUser.id}`, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const showToast = (toastObj) => {
     setToast(toastObj);
@@ -164,7 +190,7 @@ export default function App() {
     }, 0);
   }, [files]);
 
-  // Pastas derivadas dos arquivos carregados
+  // Pastas derivadas dos arquivos carregados + pastas extras criadas pelo usuário
   const folders = useMemo(() => {
     const map = {};
     files.forEach(f => {
@@ -172,10 +198,14 @@ export default function App() {
         map[f.folder_name] = (map[f.folder_name] || 0) + 1;
       }
     });
+    // Inclui pastas criadas pelo usuário mesmo que vazias
+    extraFolders.forEach(name => {
+      if (!(name in map)) map[name] = 0;
+    });
     return Object.entries(map)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [files]);
+  }, [files, extraFolders]);
 
   // Nomes das pastas para o UploadModal
   const folderNames = useMemo(() => folders.map(f => f.name), [folders]);
@@ -203,6 +233,23 @@ export default function App() {
     setRegisteredUser(userData);
     setIsWhatsAppOpen(true);
     showToast({ type: 'success', message: 'Cadastro enviado! Solicite a autorização no WhatsApp.' });
+  };
+
+  // Mover arquivo para pasta
+  const handleMoveFile = async (fileItem, folderName) => {
+    try {
+      await updateFileFolder(fileItem.id, folderName, currentUser?.id);
+      setFiles(prev => prev.map(f =>
+        f.id === fileItem.id ? { ...f, folder_name: folderName || null } : f
+      ));
+      showToast({
+        type: 'success',
+        message: folderName ? `Movido para "${folderName}"` : 'Removido da pasta'
+      });
+    } catch (err) {
+      console.error(err);
+      showToast({ type: 'error', message: 'Erro ao mover arquivo' });
+    }
   };
 
   // Deletar arquivo
@@ -454,7 +501,10 @@ export default function App() {
                 folders={folders}
                 activeFolder={activeFolder}
                 onSelectFolder={setActiveFolder}
-                onCreateFolder={(name) => setActiveFolder(name)}
+                onCreateFolder={(name) => {
+                  addExtraFolder(name);
+                  setActiveFolder(name);
+                }}
               />
             )}
             {loading ? (
@@ -481,6 +531,8 @@ export default function App() {
                     onDownload={handleDownload}
                     onShare={handleShare}
                     onDelete={handleDelete}
+                    onMove={handleMoveFile}
+                    folders={folderNames}
                   />
                 ))}
               </div>

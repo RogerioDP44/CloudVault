@@ -317,6 +317,33 @@ export async function toggleUserApproval(userId, isApproved) {
 }
 
 /**
+ * ARQUIVOS: Mover arquivo para uma pasta (atualiza folder_name)
+ */
+export async function updateFileFolder(fileId, folderName, userId = 'anonymous') {
+  const supabase = getSupabase();
+
+  if (supabase) {
+    const { error } = await supabase
+      .from('media_files')
+      .update({ folder_name: folderName || null })
+      .eq('id', fileId);
+    if (error) {
+      console.error('[updateFileFolder] Erro:', error);
+      throw error;
+    }
+    return true;
+  }
+
+  // Fallback local (modo demo)
+  const files = getDemoFiles(userId);
+  const updated = files.map(f =>
+    f.id === fileId ? { ...f, folder_name: folderName || null } : f
+  );
+  saveDemoFiles(userId, updated);
+  return true;
+}
+
+/**
  * Observador de mudanças no estado de autenticação
  */
 export function onAuthStateChange(callback) {

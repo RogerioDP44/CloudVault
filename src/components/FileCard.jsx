@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Play, 
   Download, 
@@ -13,14 +13,35 @@ import {
   File,
   Sparkles,
   MoreVertical,
-  Check
+  Check,
+  Folder,
+  FolderInput
 } from 'lucide-react';
 import { formatBytes, formatDate, getFileExtension } from '../utils/formatters';
 
-export default function FileCard({ file, onView, onDownload, onShare, onDelete }) {
+export default function FileCard({ file, onView, onDownload, onShare, onDelete, onMove, folders = [] }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const moveRef = useRef(null);
+
+  // Fecha dropdown de pasta ao clicar fora
+  useEffect(() => {
+    if (!moveOpen) return;
+    const handleOutside = (e) => {
+      if (moveRef.current && !moveRef.current.contains(e.target)) {
+        setMoveOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [moveOpen]);
+
+  const handleMove = (folderName) => {
+    if (onMove) onMove(file, folderName || null);
+    setMoveOpen(false);
+  };
 
   const ext = getFileExtension(file.original_name || file.name);
 
@@ -164,6 +185,66 @@ export default function FileCard({ file, onView, onDownload, onShare, onDelete }
             >
               <Download className="w-4 h-4" />
             </button>
+
+            {/* Mover para Pasta */}
+            <div ref={moveRef} className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setMoveOpen(v => !v); }}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  file.folder_name
+                    ? 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40'
+                    : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800'
+                }`}
+                title={file.folder_name ? `Pasta: ${file.folder_name}` : 'Mover para pasta'}
+              >
+                <FolderInput className="w-4 h-4" />
+              </button>
+
+              {/* Dropdown de pastas */}
+              {moveOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-8 left-0 z-30 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl min-w-[170px] py-1.5 animate-fade-in"
+                >
+                  <p className="text-[10px] font-bold text-slate-500 px-3 py-1">Mover para:</p>
+
+                  {/* Sem pasta */}
+                  <button
+                    onClick={() => handleMove(null)}
+                    className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
+                      !file.folder_name
+                        ? 'text-slate-300 bg-slate-800/80'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    Sem pasta
+                  </button>
+
+                  {/* Pastas disponíveis */}
+                  {folders.map(f => (
+                    <button
+                      key={f}
+                      onClick={() => handleMove(f)}
+                      className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
+                        file.folder_name === f
+                          ? 'text-indigo-300 bg-indigo-950/60'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <Folder className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{f}</span>
+                      {file.folder_name === f && <Check className="w-3 h-3 ml-auto shrink-0" />}
+                    </button>
+                  ))}
+
+                  {folders.length === 0 && (
+                    <p className="text-[10px] text-slate-600 px-3 py-1.5">
+                      Crie uma pasta na barra acima
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Excluir com confirmação inline */}
