@@ -6,23 +6,21 @@ const STORAGE_R2_CONFIG_KEY = 'cloudvault_r2_config';
  * Obtém as configurações salvas do Cloudflare R2
  */
 export function getR2Config() {
+  let savedConfig = {};
   try {
     const saved = localStorage.getItem(STORAGE_R2_CONFIG_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.accountId && parsed.accessKeyId && parsed.secretAccessKey) {
-        return parsed;
-      }
+      savedConfig = JSON.parse(saved) || {};
     }
   } catch (e) {
     console.error('Erro ao ler configurações do Cloudflare R2:', e);
   }
   return {
-    accountId: '',
-    accessKeyId: '',
-    secretAccessKey: '',
-    bucketName: 'cloudvault',
-    publicDomain: ''
+    accountId: savedConfig.accountId || '7f58455c5d37e2b50d7aa575e205a3ad',
+    accessKeyId: savedConfig.accessKeyId || '',
+    secretAccessKey: savedConfig.secretAccessKey || '',
+    bucketName: savedConfig.bucketName || 'cloudvault',
+    publicDomain: savedConfig.publicDomain || 'https://pub-099dd212ad0b4679afe763ed23cf8626.r2.dev'
   };
 }
 
