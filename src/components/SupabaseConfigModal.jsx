@@ -14,6 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { getSupabaseConfig, saveSupabaseConfig, testSupabaseConnection } from '../services/supabase';
+import { getR2Config, saveR2Config } from '../services/r2Storage';
 
 const SQL_SETUP_SNIPPET = `-- Execute no SQL Editor do Supabase (https://supabase.com/dashboard)
 INSERT INTO storage.buckets (id, name, public) VALUES ('cloudvault', 'cloudvault', true) ON CONFLICT (id) DO NOTHING;
@@ -48,6 +49,15 @@ export default function SupabaseConfigModal({ isOpen, onClose, onConfigSaved }) 
   const [copiedSql, setCopiedSql] = useState(false);
   const [showSql, setShowSql] = useState(false);
 
+  // Cloudflare R2 Config State
+  const currentR2 = getR2Config();
+  const [r2AccountId, setR2AccountId] = useState(currentR2.accountId || '');
+  const [r2AccessKeyId, setR2AccessKeyId] = useState(currentR2.accessKeyId || '');
+  const [r2SecretAccessKey, setR2SecretAccessKey] = useState(currentR2.secretAccessKey || '');
+  const [r2BucketName, setR2BucketName] = useState(currentR2.bucketName || 'cloudvault');
+  const [r2PublicDomain, setR2PublicDomain] = useState(currentR2.publicDomain || '');
+  const [showR2, setShowR2] = useState(Boolean(currentR2.accountId));
+
   const handleTest = async () => {
     if (!url || !anonKey) {
       setTestResult({ success: false, message: 'Preencha a URL e a Anon Key do Supabase' });
@@ -71,6 +81,14 @@ export default function SupabaseConfigModal({ isOpen, onClose, onConfigSaved }) 
     saveSupabaseConfig({
       url: url.trim(),
       anonKey: anonKey.trim()
+    });
+
+    saveR2Config({
+      accountId: r2AccountId.trim(),
+      accessKeyId: r2AccessKeyId.trim(),
+      secretAccessKey: r2SecretAccessKey.trim(),
+      bucketName: r2BucketName.trim() || 'cloudvault',
+      publicDomain: r2PublicDomain.trim()
     });
 
     if (onConfigSaved) onConfigSaved();
@@ -144,6 +162,91 @@ export default function SupabaseConfigModal({ isOpen, onClose, onConfigSaved }) 
               placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
               className="w-full bg-slate-950 text-xs text-slate-100 placeholder-slate-600 px-3.5 py-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 font-mono resize-none"
             />
+          </div>
+
+          {/* Seção Cloudflare R2 Storage (Opcional - Arquivos Ilimitados / Vídeos 1GB+) */}
+          <div className="pt-3 border-t border-slate-800 space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowR2(!showR2)}
+              className="w-full flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-xs font-extrabold">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Cloudflare R2 Storage (Para vídeos de 1GB+ / 10GB Grátis)</span>
+              </div>
+              <span className="text-[11px] font-bold underline">{showR2 ? 'Ocultar' : 'Configurar'}</span>
+            </button>
+
+            {showR2 && (
+              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3 animate-fadeIn">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                    Account ID (ID da Conta Cloudflare)
+                  </label>
+                  <input
+                    type="text"
+                    value={r2AccountId}
+                    onChange={(e) => setR2AccountId(e.target.value)}
+                    placeholder="ex: 8a7b9c0d1e2f3a4b5c6d7e8f9a0b1c2d"
+                    className="w-full bg-slate-900 text-xs text-slate-100 placeholder-slate-600 px-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                    Access Key ID (R2 Token)
+                  </label>
+                  <input
+                    type="text"
+                    value={r2AccessKeyId}
+                    onChange={(e) => setR2AccessKeyId(e.target.value)}
+                    placeholder="ex: c1d2e3f4a5b6..."
+                    className="w-full bg-slate-900 text-xs text-slate-100 placeholder-slate-600 px-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                    Secret Access Key (R2 Token)
+                  </label>
+                  <input
+                    type="password"
+                    value={r2SecretAccessKey}
+                    onChange={(e) => setR2SecretAccessKey(e.target.value)}
+                    placeholder="Chave Secreta R2..."
+                    className="w-full bg-slate-900 text-xs text-slate-100 placeholder-slate-600 px-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      Bucket Name
+                    </label>
+                    <input
+                      type="text"
+                      value={r2BucketName}
+                      onChange={(e) => setR2BucketName(e.target.value)}
+                      placeholder="cloudvault"
+                      className="w-full bg-slate-900 text-xs text-slate-100 placeholder-slate-600 px-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      Public Domain (URL r2.dev)
+                    </label>
+                    <input
+                      type="text"
+                      value={r2PublicDomain}
+                      onChange={(e) => setR2PublicDomain(e.target.value)}
+                      placeholder="https://pub-xxx.r2.dev"
+                      className="w-full bg-slate-900 text-xs text-slate-100 placeholder-slate-600 px-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Resultado do Teste */}

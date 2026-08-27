@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { classifyFile } from '../utils/formatters';
 import { compressVideoClientSide, needsCompression } from './videoCompressor';
 import { optimizeImage } from './imageCompressor';
+import { getR2Client, uploadToR2 } from './r2Storage';
 
 // Chaves de armazenamento local
 const STORAGE_CONFIG_KEY = 'cloudvault_supabase_config';
@@ -422,23 +423,32 @@ export async function uploadSingleFile({
     const timestamp = Date.now();
     const cleanFileName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${userId}/${category}/${timestamp}_${cleanFileName}`;
+    let publicUrl = '';
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('cloudvault')
-      .upload(storagePath, fileToUpload, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+    const r2Client = getR2Client();
+    if (r2Client) {
+      onStatusChange({ step: 'uploading', message: 'Enviando para o Cloudflare R2...' });
+      const r2Res = await uploadToR2({ file: fileToUpload, storagePath });
+      publicUrl = r2Res.publicUrl;
+    } else {
+      onStatusChange({ step: 'uploading', message: 'Enviando para o Supabase Storage...' });
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('cloudvault')
+        .upload(storagePath, fileToUpload, {
+          cacheControl: '3600',
+          upsert: false,
+        });
 
-    if (uploadError) {
-      throw new Error(`Erro no Storage: ${uploadError.message}`);
+      if (uploadError) {
+        throw new Error(`Erro no Storage: ${uploadError.message}`);
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('cloudvault')
+        .getPublicUrl(storagePath);
+
+      publicUrl = publicUrlData?.publicUrl || '';
     }
-
-    const { data: publicUrlData } = supabase.storage
-      .from('cloudvault')
-      .getPublicUrl(storagePath);
-
-    const publicUrl = publicUrlData?.publicUrl || '';
 
     const mediaRecord = {
       user_id: userId,
