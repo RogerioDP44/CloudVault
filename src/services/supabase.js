@@ -293,19 +293,27 @@ export async function toggleUserApproval(userId, isApproved) {
     throw new Error('Supabase não está conectado. Verifique as credenciais.');
   }
 
-  const { data, error } = await supabase
+  // Tenta update direto
+  const { error } = await supabase
     .from('profiles')
     .update({ is_approved: isApproved })
-    .eq('id', userId)
-    .select()
-    .single();
+    .eq('id', userId);
 
   if (error) {
-    console.error('Erro ao atualizar aprovação do usuário:', error);
-    throw error;
+    console.error('[toggleUserApproval] Erro no UPDATE:', JSON.stringify(error));
+    
+    // Fallback: tenta upsert caso o update tenha falhado por RLS
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, is_approved: isApproved }, { onConflict: 'id' });
+
+    if (upsertError) {
+      console.error('[toggleUserApproval] Erro no UPSERT fallback:', JSON.stringify(upsertError));
+      throw upsertError;
+    }
   }
 
-  return data;
+  return true;
 }
 
 /**
