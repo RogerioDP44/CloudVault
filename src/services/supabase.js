@@ -358,6 +358,7 @@ export function onAuthStateChange(callback) {
 export async function uploadSingleFile({
   file,
   user,
+  folderName = null,
   onProgress = () => {},
   onStatusChange = () => {}
 }) {
@@ -423,6 +424,7 @@ export async function uploadSingleFile({
       storage_path: storagePath,
       file_url: publicUrl,
       compressed: isCompressed,
+      folder_name: folderName || null,
       created_at: new Date().toISOString()
     };
 
@@ -464,6 +466,7 @@ export async function uploadSingleFile({
         storage_path: `local/${userId}/${category}/${fileToUpload.name}`,
         file_url: e.target.result,
         compressed: isCompressed,
+        folder_name: folderName || null,
         created_at: new Date().toISOString(),
         isLocalDemo: true
       };

@@ -11,6 +11,7 @@ import WhatsAppApprovalModal from './components/WhatsAppApprovalModal';
 import AdminUsersModal from './components/AdminUsersModal';
 import CookieBanner from './components/CookieBanner';
 import LegalModal from './components/LegalModal';
+import FolderBar from './components/FolderBar';
 import { 
   fetchFiles, 
   deleteFile, 
@@ -44,6 +45,7 @@ import { CATEGORY_DETAILS } from './utils/formatters';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('photos');
+  const [activeFolder, setActiveFolder] = useState(null);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,11 +164,31 @@ export default function App() {
     }, 0);
   }, [files]);
 
-  // Arquivos filtrados pela aba ativa
+  // Pastas derivadas dos arquivos carregados
+  const folders = useMemo(() => {
+    const map = {};
+    files.forEach(f => {
+      if (f.folder_name) {
+        map[f.folder_name] = (map[f.folder_name] || 0) + 1;
+      }
+    });
+    return Object.entries(map)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [files]);
+
+  // Nomes das pastas para o UploadModal
+  const folderNames = useMemo(() => folders.map(f => f.name), [folders]);
+
+  // Arquivos filtrados pela aba ativa e pasta ativa
   const filteredFiles = useMemo(() => {
     if (activeTab === 'cleaning') return files;
-    return files.filter((f) => f.category === activeTab);
-  }, [files, activeTab]);
+    let result = files.filter((f) => f.category === activeTab);
+    if (activeFolder !== null) {
+      result = result.filter((f) => f.folder_name === activeFolder);
+    }
+    return result;
+  }, [files, activeTab, activeFolder]);
 
   // Logout
   const handleLogout = async () => {
@@ -427,6 +449,14 @@ export default function App() {
             </div>
 
             {/* Grid de Arquivos */}
+            {!isUserBlocked && currentUser && (
+              <FolderBar
+                folders={folders}
+                activeFolder={activeFolder}
+                onSelectFolder={setActiveFolder}
+                onCreateFolder={(name) => setActiveFolder(name)}
+              />
+            )}
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                 {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -523,6 +553,8 @@ export default function App() {
         onUploadComplete={handleUploadComplete}
         onOpenCleaning={() => setActiveTab('cleaning')}
         onOpenAuth={() => setIsAuthOpen(true)}
+        folders={folderNames}
+        defaultFolder={activeFolder}
       />
 
       <AuthModal

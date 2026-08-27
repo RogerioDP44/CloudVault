@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, 
   UploadCloud, 
@@ -12,7 +12,11 @@ import {
   Loader2,
   Trash2,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Folder,
+  Plus,
+  Check,
+  Calendar
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { classifyFile, formatBytes, CATEGORY_DETAILS } from '../utils/formatters';
@@ -20,7 +24,7 @@ import { uploadSingleFile } from '../services/supabase';
 import { needsCompression } from '../services/videoCompressor';
 import { validateFileSafety } from '../utils/security';
 
-export default function UploadModal({ isOpen, onClose, currentUser, onUploadComplete, onOpenCleaning, onOpenAuth }) {
+export default function UploadModal({ isOpen, onClose, currentUser, onUploadComplete, onOpenCleaning, onOpenAuth, folders = [], defaultFolder = null }) {
   if (!isOpen) return null;
 
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -30,9 +34,23 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
   const [uploadIndex, setUploadIndex] = useState(0);
   const [completedResults, setCompletedResults] = useState(null);
 
+  // Pasta de destino
+  const [selectedFolder, setSelectedFolder] = useState(defaultFolder || null);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderInput, setNewFolderInput] = useState('');
+
   const fileInputRef = useRef(null);
   const cameraPhotoRef = useRef(null);
   const cameraVideoRef = useRef(null);
+
+  // Reseta estado quando o modal abre
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedFolder(defaultFolder || null);
+      setIsCreatingFolder(false);
+      setNewFolderInput('');
+    }
+  }, [isOpen, defaultFolder]);
 
   // Manipula a seleção de arquivos com validação de segurança
   const handleFileChange = (e) => {
@@ -93,6 +111,7 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
         const record = await uploadSingleFile({
           file: item.file,
           user: currentUser,
+          folderName: selectedFolder,
           onProgress: (p) => {
             setCurrentProgress(p);
             setSelectedFiles((prev) =>
@@ -158,6 +177,9 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
     setCompletedResults(null);
     setCurrentProgress(0);
     setStatusMessage('');
+    setSelectedFolder(defaultFolder || null);
+    setIsCreatingFolder(false);
+    setNewFolderInput('');
   };
 
   // Totais
@@ -270,6 +292,117 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
             </div>
           ) : (
             <>
+              {/* Seletor de Pasta */}
+              <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+                    <Folder className="w-3.5 h-3.5 text-indigo-400" /> Pasta de destino
+                  </span>
+                  {selectedFolder && (
+                    <button
+                      onClick={() => setSelectedFolder(null)}
+                      className="text-[10px] text-slate-600 hover:text-rose-400 transition-colors"
+                    >
+                      remover pasta
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {/* Sem pasta */}
+                  <button
+                    onClick={() => setSelectedFolder(null)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                      !selectedFolder
+                        ? 'bg-slate-700 text-white border-slate-600'
+                        : 'bg-slate-900/80 text-slate-500 border-slate-800 hover:text-slate-300'
+                    }`}
+                  >
+                    Sem pasta
+                  </button>
+
+                  {/* Pastas existentes */}
+                  {folders.map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setSelectedFolder(f)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1 ${
+                        selectedFolder === f
+                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                          : 'bg-slate-900/80 text-slate-500 border-slate-800 hover:text-slate-300'
+                      }`}
+                    >
+                      <Folder className="w-3 h-3" /> {f}
+                    </button>
+                  ))}
+
+                  {/* Nova pasta */}
+                  <button
+                    onClick={() => setIsCreatingFolder(v => !v)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-dashed border-slate-700 text-slate-600 hover:text-brand-400 hover:border-brand-500/40 transition-all flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Nova
+                  </button>
+                </div>
+
+                {/* Input criação inline */}
+                {isCreatingFolder && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newFolderInput}
+                      onChange={e => setNewFolderInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newFolderInput.trim()) {
+                          setSelectedFolder(newFolderInput.trim());
+                          setIsCreatingFolder(false);
+                          setNewFolderInput('');
+                        }
+                        if (e.key === 'Escape') {
+                          setIsCreatingFolder(false);
+                          setNewFolderInput('');
+                        }
+                      }}
+                      placeholder="Nome da nova pasta..."
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-[11px] text-white placeholder-slate-600 outline-none focus:border-brand-500/60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setNewFolderInput(
+                        new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                          .replace(/^\w/, c => c.toUpperCase())
+                      )}
+                      title="Usar mês atual"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-brand-400 transition-colors"
+                    >
+                      <Calendar className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newFolderInput.trim()) {
+                          setSelectedFolder(newFolderInput.trim());
+                          setIsCreatingFolder(false);
+                          setNewFolderInput('');
+                        }
+                      }}
+                      disabled={!newFolderInput.trim()}
+                      className="p-1.5 rounded-lg bg-brand-600 text-white disabled:opacity-40 transition-colors"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsCreatingFolder(false); setNewFolderInput(''); }}
+                      className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Botões de Seleção Rápida */}
               <div className="grid grid-cols-3 gap-2">
                 <button
