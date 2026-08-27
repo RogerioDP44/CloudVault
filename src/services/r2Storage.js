@@ -17,8 +17,8 @@ export function getR2Config() {
   }
   return {
     accountId: savedConfig.accountId || '7f58455c5d37e2b50d7aa575e205a3ad',
-    accessKeyId: savedConfig.accessKeyId || '',
-    secretAccessKey: savedConfig.secretAccessKey || '',
+    accessKeyId: savedConfig.accessKeyId || '56e746971a67a3403887171571a229fb',
+    secretAccessKey: savedConfig.secretAccessKey || '9c83480a0b06c411ada4d2de252812fb87445f1ba67cd07ab69a56e525b45f70',
     bucketName: savedConfig.bucketName || 'cloudvault',
     publicDomain: savedConfig.publicDomain || 'https://pub-099dd212ad0b4679afe763ed23cf8626.r2.dev'
   };
