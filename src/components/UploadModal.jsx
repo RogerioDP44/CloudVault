@@ -99,6 +99,8 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
 
     for (let i = 0; i < selectedFiles.length; i++) {
       const item = selectedFiles[i];
+      if (!item.isSafe || item.status === 'error') continue;
+
       setUploadIndex(i + 1);
 
       setSelectedFiles((prev) =>
@@ -564,11 +566,11 @@ export default function UploadModal({ isOpen, onClose, currentUser, onUploadComp
             ) : (
               <button
                 onClick={handleStartUpload}
-                disabled={selectedFiles.length === 0}
+                disabled={selectedFiles.filter(f => f.isSafe).length === 0}
                 className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-brand-500 hover:from-brand-500 hover:to-indigo-400 text-white text-sm font-bold shadow-glow-brand disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2"
               >
                 <UploadCloud className="w-5 h-5" />
-                Fazer Backup no Supabase ({selectedFiles.length})
+                Fazer Backup no Supabase ({selectedFiles.filter(f => f.isSafe).length})
               </button>
             )}
           </div>
